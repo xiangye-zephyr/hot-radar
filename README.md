@@ -45,7 +45,7 @@ python3 crawl.py
    | 晚报 | 每天 18:30 | 按 AGENTS.md 出今天的晚报 |
 
 3. **网络权限**：简报前要 `git pull`、写完要 `git push`，需要联网。Codex 默认的沙箱会拦住联网的命令，需要给这个项目放开网络权限，或者给 git 命令加白名单规则。
-4. **抖音热点宝**：判断一个梗在抖音上还有没有人在拍，Codex 会用本机的 `douhot` 工具读抖音热点宝。出简报时，热点宝专用的 Chrome 要开着并保持抖音登录：双击 `/Users/zzymima0000/Documents/Codex/2026-10-15/dou-s/outputs/打开热点宝专用Chrome.command` 打开。没开的话简报照出，但梗的活跃度没法核实。
+4. **抖音热点宝**：判断一个梗在抖音上还有没有人在拍，Codex 会用本机的 `douhot` 工具读抖音热点宝。它要用一个登录了抖音的专用 Chrome，这个 Chrome 由 `~/Documents/Codex/2026-10-15/dou-s/outputs/run_douhot_mcp.sh` 在 Codex 用到时自动在后台无界面启动，平时不用管。抖音登录过期时，简报开头会提示"热点宝：未连接"，这时双击同一个文件夹里的 `热点宝重新登录.command`，扫码后按 ⌘Q 关掉弹出的 Chrome 即可。
 5. **注意**：Codex 的定时任务要求电脑开着、ChatGPT 桌面端在运行。电脑关着的时候不会出简报，但抓取在 GitHub 上照常进行，数据不会断。也可以随时在对话里说"出一份简报"。
 
 平时的用法：
