@@ -1,5 +1,6 @@
 [
-  {"id": "douyin", "name": "抖音", "group": "社交平台"},
+  {"id": "douyin", "name": "抖音", "group": "社交平台", "fetcher": "douyin"},
+  {"id": "douyin-rising", "name": "抖音实时上升", "group": "社交平台", "fetcher": "douyin-rising"},
   {"id": "weibo", "name": "微博", "group": "社交平台"},
   {"id": "bilibili-hot-search", "name": "B站热搜", "group": "社交平台"},
   {"id": "zhihu", "name": "知乎", "group": "社交平台"},

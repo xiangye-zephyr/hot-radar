@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """hot-radar：抓取全网热榜 → 归档排名历史 → 导出给 Agent 读的 latest.json / latest.md。
 
-数据来自 newsnow（https://github.com/newsnext/newsnow）的公开接口，只用 Python 标准库。
+数据来自 newsnow（https://github.com/newsnext/newsnow）的公开接口；抖音直接用官方热榜接口
+（多 20 条、带热度值和话题开始时间），失败时退回 newsnow。只用 Python 标准库。
 平台列表在 sources.json。运行：python3 crawl.py
 """
 
@@ -11,6 +12,7 @@ import time
 import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent
@@ -20,6 +22,10 @@ TZ = ZoneInfo("Asia/Shanghai")
 
 # 想换成自己部署的 newsnow，设置环境变量 NEWSNOW_API 即可
 API_URL = os.environ.get("NEWSNOW_API", "https://newsnow.busiyi.world/api/s")
+DOUYIN_API = (
+    "https://www.douyin.com/aweme/v1/web/hot/search/list/"
+    "?device_platform=webapp&aid=6383&channel=channel_pc_web&detail_list=1"
+)
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
@@ -35,21 +41,76 @@ def load_sources():
     return json.loads((ROOT / "sources.json").read_text("utf-8"))
 
 
-def fetch(source_id):
-    """请求一个平台的热榜，失败会重试，返回 newsnow 的 items 列表。"""
-    url = f"{API_URL}?id={source_id}&latest"
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
+def http_json(url, headers=None):
+    req = urllib.request.Request(
+        url, headers={"User-Agent": USER_AGENT, "Accept": "application/json", **(headers or {})}
+    )
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        # 部分平台（如爱奇艺）的返回里有未转义的控制字符，strict=False 才能解析
+        return json.loads(resp.read().decode("utf-8"), strict=False)
+
+
+def fetch_newsnow(source_id):
+    data = http_json(f"{API_URL}?id={source_id}&latest")
+    if data.get("status") not in ("success", "cache"):
+        raise ValueError(f"status={data.get('status')}")
+    return data.get("items") or []
+
+
+_douyin_board = {}
+
+
+def douyin_board():
+    """抖音官方热榜接口（免登录）。主榜和"实时上升热点"在同一个响应里，一次运行只请求一次。"""
+    if "data" not in _douyin_board:
+        _douyin_board["data"] = http_json(DOUYIN_API, {"Referer": "https://www.douyin.com/"})["data"]
+    return _douyin_board["data"]
+
+
+def douyin_items(rows):
+    """把抖音官方接口的条目转成 newsnow 的格式；id 用 sentence_id，和 newsnow 的抖音编号一致。"""
+    items = []
+    for row in rows:
+        word = (row.get("word") or "").strip()
+        if not word:
+            continue
+        sid = row.get("sentence_id")
+        hot = row.get("hot_value") or 0
+        items.append({
+            "id": str(sid or word),
+            "title": word,
+            "url": f"https://www.douyin.com/hot/{sid}" if sid else f"https://www.douyin.com/search/{quote(word)}",
+            "extra": {"info": f"{hot / 10000:.0f}万热度" if hot else "", "topic_start": row.get("event_time")},
+        })
+    return items
+
+
+def fetch_douyin(source_id):
+    try:
+        return douyin_items(douyin_board()["word_list"])
+    except Exception as e:
+        print(f"  抖音官方接口失败（{e}），改用 newsnow")
+        return fetch_newsnow(source_id)
+
+
+def fetch_douyin_rising(_source_id):
+    return douyin_items(douyin_board().get("trending_list") or [])
+
+
+FETCHERS = {"douyin": fetch_douyin, "douyin-rising": fetch_douyin_rising}
+
+
+def fetch(src):
+    """请求一个平台的热榜，失败会重试，返回 newsnow 格式的 items 列表。"""
+    getter = FETCHERS.get(src.get("fetcher"), fetch_newsnow)
     error = None
     for attempt in range(RETRIES + 1):
         if attempt:
             time.sleep(3 * attempt)
         try:
-            with urllib.request.urlopen(req, timeout=20) as resp:
-                # 部分平台（如爱奇艺）的返回里有未转义的控制字符，strict=False 才能解析
-                data = json.loads(resp.read().decode("utf-8"), strict=False)
-            items = data.get("items") or []
-            if data.get("status") not in ("success", "cache") or not items:
-                raise ValueError(f"status={data.get('status')} items={len(items)}")
+            items = getter(src["id"])
+            if not items:
+                raise ValueError("没有数据")
             return items
         except Exception as e:  # 任何错误都记下来，不影响其他平台
             error = e
@@ -127,6 +188,10 @@ def update_item(daily, prev_daily, src, rank, raw, now, crawl_time, prev_crawl_t
         last_rank=rank,
         peak_rank=min(item["peak_rank"], rank),
     )
+    start = extra.get("topic_start")
+    if isinstance(start, (int, float)) and start > 0:
+        # 平台自己记录的话题开始时间（目前只有抖音有），比我们第一次抓到的时间更准
+        item["topic_start"] = datetime.fromtimestamp(start, TZ).isoformat(timespec="minutes")
     item["ranks"].append([now.strftime("%H:%M"), rank])
     daily["items"][key] = item
 
@@ -146,6 +211,7 @@ def update_item(daily, prev_daily, src, rank, raw, now, crawl_time, prev_crawl_t
         "peak_rank": item["peak_rank"],
         "first_seen": item["first_seen"],
         "hours_on_list": round(hours, 1),
+        "topic_start": item.get("topic_start", ""),
     }
 
 
@@ -192,7 +258,7 @@ def save_latest_md(latest, sources):
         "",
         "标记：🆕 新上榜 · ↑↓ 和上次抓取相比的排名变化 · ↩回榜 之前上过榜又回来 · "
         "轨迹 = 最近几次抓取的排名（约 2 小时一次），0 表示那次不在榜 · "
-        "在榜 = 首次上榜至今的小时数 · 最高 = 上榜以来的最高排名",
+        "在榜 = 首次上榜至今的小时数 · 最高 = 上榜以来的最高排名 · 始于 = 抖音记录的话题开始时间",
     ]
     by_platform = {}
     for it in latest["items"]:
@@ -216,6 +282,8 @@ def save_latest_md(latest, sources):
                 tags.append("轨迹 " + "→".join(str(r) for _, r in it["trajectory"]))
             if it["status"] not in ("new", "first"):
                 tags += [f"在榜 {it['hours_on_list']:g}h", f"最高 #{it['peak_rank']}"]
+            if it["topic_start"]:
+                tags.append(f"始于 {datetime.fromisoformat(it['topic_start']):%m-%d %H:%M}")
             lines.append(text + (" · " + " · ".join(tags) if tags else ""))
     (DATA_DIR / "latest.md").write_text("\n".join(lines) + "\n", "utf-8")
 
@@ -237,7 +305,7 @@ def main():
         if i:
             time.sleep(REQUEST_INTERVAL)
         try:
-            raw_items = fetch(src["id"])
+            raw_items = fetch(src)
         except RuntimeError as e:
             failed.append({"id": src["id"], "name": src["name"], "error": str(e)[:200]})
             print(f"✗ {src['name']}：{e}")
