@@ -1,0 +1,22 @@
+[
+  {"id": "douyin", "name": "抖音", "group": "社交平台"},
+  {"id": "weibo", "name": "微博", "group": "社交平台"},
+  {"id": "bilibili-hot-search", "name": "B站热搜", "group": "社交平台"},
+  {"id": "zhihu", "name": "知乎", "group": "社交平台"},
+  {"id": "tieba", "name": "百度贴吧", "group": "社交平台"},
+  {"id": "hupu", "name": "虎扑", "group": "社交平台"},
+  {"id": "baidu", "name": "百度热搜", "group": "综合新闻"},
+  {"id": "toutiao", "name": "今日头条", "group": "综合新闻"},
+  {"id": "thepaper", "name": "澎湃新闻", "group": "综合新闻"},
+  {"id": "ifeng", "name": "凤凰网", "group": "综合新闻"},
+  {"id": "tencent-hot", "name": "腾讯新闻", "group": "综合新闻"},
+  {"id": "qqvideo-tv-hotsearch", "name": "腾讯视频", "group": "影视"},
+  {"id": "iqiyi-hot-ranklist", "name": "爱奇艺", "group": "影视"},
+  {"id": "douban", "name": "豆瓣电影", "group": "影视"},
+  {"id": "aihot", "name": "AI热点", "group": "科技与AI"},
+  {"id": "ithome", "name": "IT之家", "group": "科技与AI"},
+  {"id": "coolapk", "name": "酷安", "group": "科技与AI"},
+  {"id": "sspai", "name": "少数派", "group": "科技与AI"},
+  {"id": "juejin", "name": "掘金", "group": "科技与AI"},
+  {"id": "github-trending-today", "name": "GitHub", "group": "科技与AI"}
+]
