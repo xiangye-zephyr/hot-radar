@@ -28,6 +28,7 @@ REQUEST_INTERVAL = 1.5  # 秒，两个平台之间的间隔，别对公共接口
 RETRIES = 2
 CARRY_OVER_HOURS = 12  # 跨天时，昨天还在榜、且离现在不超过这么久的热点，算同一次上榜
 HOVER_MAX = 120  # 平台给的摘要截断长度
+TRAJECTORY_POINTS = 6  # 轨迹显示最近几次抓取（每 2 小时一次，约 12 小时）
 
 
 def load_sources():
@@ -131,6 +132,7 @@ def update_item(daily, prev_daily, src, rank, raw, now, crawl_time, prev_crawl_t
 
     hours = (now - datetime.fromisoformat(item["first_seen"])).total_seconds() / 3600
     return {
+        "key": key,
         "platform": src["id"],
         "platform_name": src["name"],
         "group": src["group"],
@@ -145,6 +147,19 @@ def update_item(daily, prev_daily, src, rank, raw, now, crawl_time, prev_crawl_t
         "first_seen": item["first_seen"],
         "hours_on_list": round(hours, 1),
     }
+
+
+def trajectory(key, daily, prev_daily, recent_times):
+    """最近几次抓取的排名，0 表示那次不在榜；上榜之前的 0 去掉。"""
+    ranks = {}
+    for d in (prev_daily, daily):
+        item = d["items"].get(key)
+        if item:
+            ranks.update((f"{d['date']}T{t}", r) for t, r in item["ranks"])
+    points = [[t[11:], ranks.get(t, 0)] for t in recent_times]
+    while points and points[0][1] == 0:
+        points.pop(0)
+    return points
 
 
 # ---------- 导出：data/latest.json / data/latest.md ----------
@@ -176,6 +191,7 @@ def save_latest_md(latest, sources):
         + (f"｜抓取失败：{'、'.join(f['name'] for f in latest['failed_sources'])}" if latest["failed_sources"] else ""),
         "",
         "标记：🆕 新上榜 · ↑↓ 和上次抓取相比的排名变化 · ↩回榜 之前上过榜又回来 · "
+        "轨迹 = 最近几次抓取的排名（约 2 小时一次），0 表示那次不在榜 · "
         "在榜 = 首次上榜至今的小时数 · 最高 = 上榜以来的最高排名",
     ]
     by_platform = {}
@@ -196,6 +212,8 @@ def save_latest_md(latest, sources):
             if it["info"]:
                 text += f"（{it['info']}）"
             tags = [mark(it)] if mark(it) else []
+            if len(it["trajectory"]) >= 2:
+                tags.append("轨迹 " + "→".join(str(r) for _, r in it["trajectory"]))
             if it["status"] not in ("new", "first"):
                 tags += [f"在榜 {it['hours_on_list']:g}h", f"最高 #{it['peak_rank']}"]
             lines.append(text + (" · " + " · ".join(tags) if tags else ""))
@@ -232,6 +250,10 @@ def main():
 
     if not items:
         raise SystemExit("所有平台都抓取失败，这次不写入数据")
+
+    recent_times = [c["time"][:16] for c in prev_daily["crawls"] + daily["crawls"]] + [crawl_time[:16]]
+    for row in items:
+        row["trajectory"] = trajectory(row["key"], daily, prev_daily, recent_times[-TRAJECTORY_POINTS:])
 
     daily["crawls"].append({"time": crawl_time, "failed": [f["id"] for f in failed]})
     save_daily(daily)
