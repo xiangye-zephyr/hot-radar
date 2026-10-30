@@ -1,3 +1,8 @@
 data/hot.db
 __pycache__/
 .DS_Store
+
+# 简报只存在本地并发到飞书，不上传（仓库是公开的）
+briefs/
+# 飞书知识库位置，只存在本地
+feishu.local.json
