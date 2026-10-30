@@ -6,3 +6,5 @@ __pycache__/
 briefs/
 # 飞书知识库位置，只存在本地
 feishu.local.json
+# 产品卡和案例库是内容策略，只存在本地
+knowledge/
