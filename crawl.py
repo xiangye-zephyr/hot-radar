@@ -34,7 +34,7 @@ REQUEST_INTERVAL = 1.5  # 秒，两个平台之间的间隔，别对公共接口
 RETRIES = 2
 CARRY_OVER_HOURS = 12  # 跨天时，昨天还在榜、且离现在不超过这么久的热点，算同一次上榜
 HOVER_MAX = 120  # 平台给的摘要截断长度
-TRAJECTORY_POINTS = 6  # 轨迹显示最近几次抓取（每 2 小时一次，约 12 小时）
+TRAJECTORY_POINTS = 6  # 轨迹显示最近几次抓取（GitHub 定时不准，间隔约 1～3 小时）
 
 
 def load_sources():
@@ -257,7 +257,7 @@ def save_latest_md(latest, sources):
         + (f"｜抓取失败：{'、'.join(f['name'] for f in latest['failed_sources'])}" if latest["failed_sources"] else ""),
         "",
         "标记：🆕 新上榜 · ↑↓ 和上次抓取相比的排名变化 · ↩回榜 之前上过榜又回来 · "
-        "轨迹 = 最近几次抓取的排名（约 2 小时一次），0 表示那次不在榜 · "
+        "轨迹 = 最近几次抓取的排名（间隔不固定），0 表示那次不在榜 · "
         "在榜 = 首次上榜至今的小时数 · 最高 = 上榜以来的最高排名 · 始于 = 抖音记录的话题开始时间",
     ]
     by_platform = {}

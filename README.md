@@ -1,6 +1,6 @@
 # 热点雷达（hot-radar）
 
-每 2 小时抓一次全网 20 个平台的热榜，记录每条热点的排名变化；Codex 按 [AGENTS.md](AGENTS.md) 从中挑出能做的热点，写成简报。
+定时抓取全网 21 个热榜（抖音、微博、B站等），记录每条热点的排名变化；Codex 按 [AGENTS.md](AGENTS.md) 从中挑出能做的热点，写成简报。
 
 - **抓取**：GitHub Actions 定时运行 `crawl.py`，不需要服务器，电脑关机也照常抓
 - **数据**：抖音用官方热榜接口（免登录，带热度值和话题开始时间），其他平台来自 [newsnow](https://github.com/newsnext/newsnow) 的公开接口
@@ -17,6 +17,7 @@
 | `data/daily/YYYY-MM-DD.json` | 每天的归档，记录每条热点每次抓取时的排名 |
 | `build_db.py` | 把归档汇总成本地 SQLite（`data/hot.db`），方便跨天查询；不提交到仓库 |
 | `AGENTS.md` | Codex 的工作手册：怎么筛、怎么写简报、怎么记录 |
+| `tools/refresh.sh` | 出简报前手动触发一次 GitHub 抓取，等跑完再拉到本地 |
 | `briefs/` | Codex 出的每份简报 |
 | `records.csv` | 发布记录：哪个热点做成了哪条视频、效果如何 |
 | `.github/workflows/crawl.yml` | 定时抓取的配置 |
@@ -31,7 +32,7 @@ python3 crawl.py
 
 1. 在 GitHub 新建一个**公开**仓库（比如 `hot-radar`），把这个文件夹推上去。公开仓库的 Actions 免费、不限时长。
 2. 打开仓库的 **Actions** 页，选「抓取热榜」→ **Run workflow**，手动跑一次，确认成功。
-3. 之后它会在北京时间每个偶数整点的第 5 分钟自动运行。GitHub 的定时任务高峰期会晚几分钟到半小时，属正常。
+3. 之后它每小时第 23 分钟尝试运行一次。GitHub 的定时任务经常被跳过或推迟（实测一晚上只跑成了两次），所以 Codex 出简报前会运行 `tools/refresh.sh`，手动触发一次抓取，等它跑完再拉到本地，保证简报用的是最新数据。
 
 ## Codex 怎么用
 

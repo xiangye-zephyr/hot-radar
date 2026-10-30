@@ -2,9 +2,9 @@ name: 抓取热榜
 
 on:
   schedule:
-    # UTC 时间；北京时间 = UTC + 8，这里是北京时间每个偶数整点的第 5 分钟
-    # GitHub 的定时任务高峰期可能晚几分钟到半小时，属正常
-    - cron: "5 */2 * * *"
+    # 每小时第 23 分钟尝试一次。GitHub 的定时任务常被跳过或推迟（整点前后最严重），
+    # 所以避开整点、提高频率；出简报前 Codex 还会用 tools/refresh.sh 手动补抓一次
+    - cron: "23 * * * *"
   workflow_dispatch: # 允许在 Actions 页面手动运行
 
 permissions:
